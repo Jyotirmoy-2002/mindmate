@@ -37,7 +37,7 @@ class MindMateResponse(BaseModel):
 # 2. STREAMLIT APP CONFIGURATION & STYLE INJECTION
 # ==========================================
 st.set_page_config(
-    page_title="MindMate // Student Exam Sanctuary",
+    page_title="🌿 MindMate // Your Safe Space",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -180,15 +180,6 @@ if not api_key:
 # ----------------------------------------------------
 st.sidebar.markdown("### 🧬 Student Context")
 
-# Fallback field in sidebar for manual key override/injection
-api_key_input = st.sidebar.text_input(
-    "Groq API Key (Optional Override):", 
-    type="password", 
-    placeholder="Using default integrated key..." if api_key == default_api_key else ""
-)
-if api_key_input.strip():
-    api_key = api_key_input
-
 # Select target exam
 st.sidebar.subheader("📊 Your Exam Profile")
 exam_choice = st.sidebar.selectbox(
@@ -286,7 +277,7 @@ def generate_chat_response(api_key, history, user_message, context_summary):
 # App Title & Header
 st.markdown("""
 <div>
-    <h1 class="sanctuary-title" style="font-size: 2.8rem; margin-bottom: 0.2rem;">🧠 MindMate // Your Exam Sanctuary</h1>
+    <h1 class="sanctuary-title" style="font-size: 2.8rem; margin-bottom: 0.2rem;">🌿 MindMate // Your Safe Space</h1>
     <p style="font-size: 1.15rem; color: #94A3B8; margin-bottom: 2rem;">Navigating competitive exam pressure with structured emotional and cognitive relief.</p>
 </div>
 """, unsafe_allow_html=True)
@@ -300,10 +291,10 @@ if "panic_active" not in st.session_state:
     st.session_state.panic_active = False
 
 # Main Dashboard Entry
-st.subheader("📝 Unfiltered Daily Brain Dump")
+st.subheader("🌱 What's on your mind, friend? Let it out...")
 journal_text = st.text_area(
-    f"Pour your mind out today. How is your {exam_choice} prep hitting you? (Vent about formulas, scores, parents, or fatigue here...)",
-    placeholder="It is completely common to feel stressed, but you are doing incredibly well just by showing up. Type exactly how you feel here...",
+    f"How is your {exam_choice} prep hitting you today? Feel free to vent about formulas, schedules, parents, or fatigue—I'm here to listen.",
+    placeholder="It's completely normal to feel stressed. You are doing incredibly well just by showing up. Tell me what's going on...",
     height=140
 )
 

@@ -169,11 +169,33 @@ html, body, [class*="css"], .stApp {
 # ----------------------------------------------------
 api_key = None
 
-# Retrieve API key in order of priority: st.secrets -> env variable
+# Retrieve API key in order of priority: st.secrets -> env variable -> manual file parse
 if "GROQ_API_KEY" in st.secrets:
     api_key = st.secrets["GROQ_API_KEY"]
 elif os.getenv("GROQ_API_KEY"):
     api_key = os.getenv("GROQ_API_KEY")
+
+# Manual file-parsing fallback for local environments (detects keys across different start CWD paths)
+if not api_key:
+    paths_to_try = [
+        ".streamlit/secrets.toml",
+        "../.streamlit/secrets.toml",
+        "mindmate/.streamlit/secrets.toml"
+    ]
+    for path in paths_to_try:
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    for line in f:
+                        if "GROQ_API_KEY" in line and "=" in line:
+                            val = line.split("=")[1].strip().strip('"').strip("'")
+                            if val:
+                                api_key = val
+                                break
+            except Exception:
+                pass
+            if api_key:
+                break
 
 # Invalidate template placeholders
 if api_key in ["YOUR_GROQ_API_KEY_HERE", "YOUR_API_KEY_HERE", "", None]:

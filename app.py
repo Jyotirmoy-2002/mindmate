@@ -5,35 +5,37 @@ import urllib.parse
 from pydantic import BaseModel, Field
 from groq import Groq
 
-# ----------------------------------------------------
-# 1. DATA STRUCTURE REQUIREMENTS (Pydantic Schema)
-# ----------------------------------------------------
-
+# ==========================================
+# 1. ENHANCED DATA STRUCTURES (Pydantic)
+# ==========================================
 class IndianMeals(BaseModel):
-    breakfast: str = Field(..., description="Nutritious Indian breakfast option + cognitive/energy reasoning")
-    lunch: str = Field(..., description="Focus-oriented Indian lunch recommendation + physiological reasoning")
-    dinner: str = Field(..., description="Light Indian dinner option + sleep-aid/relaxation reasoning")
-    snack: str = Field(..., description="Brain-boosting healthy Indian snack + quick mental reasoning")
-    avoid: str = Field(..., description="Specific food/drink to avoid today + physiological reason")
+    breakfast: str = Field(description="Indian food item + brief energy/brain reasoning")
+    lunch: str = Field(description="Indian food item + focus reasoning")
+    dinner: str = Field(description="Light Indian food item + sleep-aid reasoning")
+    snack: str = Field(description="Brain-boosting snack + quick reasoning")
+    avoid: str = Field(description="What food/drink to avoid today + physiological reason")
 
 class MindMateResponse(BaseModel):
-    emotion: str = Field(..., description="One word capturing the student's primary emotional state (e.g. Overwhelmed)")
-    emotion_insight: str = Field(..., description="1 sentence identifying the hidden root cause of their current state beneath the surface")
-    triggers: list[str] = Field(..., description="2-3 highly specific academic or emotional stress triggers identified in the student's journal entry")
-    coping_plan: list[str] = Field(..., description="Exactly 3 sequential, actionable micro-steps to reset focus")
+    emotion: str = Field(description="One word capturing their primary state (e.g., Overwhelmed, Exhausted, Anxious)")
+    empathy_validation: str = Field(description="A warm, validating open statement comforting the student, acknowledging it's normal to feel this way during this exam, and reminding them they are doing well.")
+    emotion_insight: str = Field(description="1 sentence identifying the hidden root cause beneath the surface")
+    academic_anxiety_pct: int = Field(description="Percentage of total stress coming from pure study load (0-100)")
+    fatigue_burnout_pct: int = Field(description="Percentage of total stress coming from physical/mental exhaustion (0-100)")
+    domestic_pressure_pct: int = Field(description="Percentage of total stress coming from family/peer expectations (0-100)")
+    coping_plan: list[str] = Field(description="Exactly 3 sequential, actionable micro-steps to reset focus right now")
     meals: IndianMeals
-    walk_prompt: str = Field(..., description="A creative, highly specific 15-minute evening mental-break mission")
-    music_mood: str = Field(..., description="A 5-word playlist vibe description (e.g. 'Chill lo-fi study beats sunset')")
-    youtube_search: str = Field(..., description="A tactical, high-value search query tailored to their target exam scenario")
-    parent_guardrail: str = Field(..., description="A pre-written, gentle, copy-pasteable 1-2 sentence message the student can send to their parents to manage expectations and reduce domestic pressure safely")
-    friend_nudge: str = Field(..., description="A warm, non-preachy sentence prompting quick social connection")
-    burnout_score: int = Field(..., description="A value from 1 to 10 assessing current student burnout severity")
-    motivational_nudge: str = Field(..., description="A deeply empathetic, tailored sentence of encouragement mentioning their specific exam context")
+    walk_prompt: str = Field(description="A creative, highly specific 15-minute evening mental-break mission")
+    youtube_music_query: str = Field(description="Specific music search query for YouTube Music matching their mood (e.g., 'Calm Lo-Fi Rain Sounds for JEE Prep')")
+    youtube_strategy_query: str = Field(description="Specific study/motivation search query for YouTube matching their issue (e.g., 'Organic Chemistry shortcut memory tricks')")
+    parent_guardrail: str = Field(description="A pre-written, gentle, copy-pasteable 1-2 sentence message to send to parents to manage expectations")
+    friend_nudge: str = Field(description="A warm, non-preachy sentence prompting quick social connection")
+    burnout_score: int = Field(description="Burnout score from 1 to 10")
+    dynamic_reset_exercise: str = Field(description="A highly tailored, custom 2-minute physiological breathing/grounding routine designed explicitly to tackle the detected emotion")
+    motivational_nudge: str = Field(description="A deeply empathetic, tailored sentence of encouragement mentioning their exam context")
 
-# ----------------------------------------------------
+# ==========================================
 # 2. STREAMLIT APP CONFIGURATION & STYLE INJECTION
-# ----------------------------------------------------
-
+# ==========================================
 st.set_page_config(
     page_title="MindMate // Student Exam Sanctuary",
     page_icon="🧠",
@@ -154,7 +156,6 @@ html, body, [class*="css"], .stApp {
 # ----------------------------------------------------
 # 3. SECURE API KEY LOGIC
 # ----------------------------------------------------
-
 api_key = None
 
 # Retrieve API key in order of priority: st.secrets -> env variable
@@ -163,7 +164,7 @@ if "GROQ_API_KEY" in st.secrets:
 elif os.getenv("GROQ_API_KEY"):
     api_key = os.getenv("GROQ_API_KEY")
 
-# Invalidate template placeholder key so user is prompted to enter their real key
+# Invalidate template placeholder key
 if api_key in ["YOUR_GROQ_API_KEY_HERE", "YOUR_API_KEY_HERE", "", None]:
     api_key = None
 
@@ -175,9 +176,8 @@ if not api_key:
     api_key = default_api_key
 
 # ----------------------------------------------------
-# 4. SIDEBAR INPUTS
+# 4. SIDEBAR INPUTS & INTERFACE CONFIG
 # ----------------------------------------------------
-
 st.sidebar.markdown("### 🧬 Student Context")
 
 # Fallback field in sidebar for manual key override/injection
@@ -190,258 +190,257 @@ if api_key_input.strip():
     api_key = api_key_input
 
 # Select target exam
-exam_options = ["JEE", "NEET", "UPSC", "CAT", "GATE", "CUET", "Board Exams"]
-selected_exam = st.sidebar.selectbox("Target Examination:", exam_options)
-
-# Days left for exam
-days_left = st.sidebar.slider(
-    "Days Left for the Exam:",
-    min_value=1,
-    max_value=365,
-    value=45,
-    step=1
+st.sidebar.subheader("📊 Your Exam Profile")
+exam_choice = st.sidebar.selectbox(
+    "What milestone hurdle are you fighting for?",
+    ["NEET", "JEE", "UPSC", "CAT", "GATE", "CUET", "Board Exams"]
 )
 
-# Persistent session states
-if "mindmate_response" not in st.session_state:
-    st.session_state.mindmate_response = None
-if "panic_active" not in st.session_state:
-    st.session_state.panic_active = False
+# Days left for exam
+days = st.sidebar.slider(
+    "Days remaining until D-Day:",
+    min_value=1,
+    max_value=365,
+    value=45
+)
 
 # ----------------------------------------------------
-# 5. CORE LOGIC: SCHEMA API CALL
+# 5. CORE BACKEND GENERATION FUNCTION
 # ----------------------------------------------------
+def generate_sanctuary_plan(api_key, exam, days_left, journal_entry):
+    try:
+        if not api_key:
+            st.error("🔑 Groq API Key missing! Please add GROQ_API_KEY to your Streamlit secrets or sidebar override.")
+            return None
+            
+        client = Groq(api_key=api_key)
+        
+        prompt = f"""
+        You are MindMate, an elite, deeply empathetic AI wellness companion for Indian competitive exam students.
+        
+        Student Profile:
+        - Exam: {exam}
+        - Days Left: {days_left}
+        
+        Today's unstructured journal entry: "{journal_entry}"
+        
+        Perform a deep cognitive and structural analysis on this text.
+        Make sure the percentages (academic_anxiety_pct, fatigue_burnout_pct, domestic_pressure_pct) total exactly 100.
+        
+        You MUST respond with a raw JSON object matching the JSON schema provided below. Do not wrap in markdown codeblocks, just output the raw JSON text directly.
+        
+        JSON Schema:
+        {json.dumps(MindMateResponse.model_json_schema())}
 
-def generate_sanctuary_plan(api_key, exam, days_left, journal_text):
-    """
-    Invokes Groq API with validation constraints mapping to the Pydantic schema.
-    """
-    client = Groq(api_key=api_key)
-    
-    prompt = f"""
-    You are MindMate, a deeply compassionate, highly skilled student counselor and cognitive-behavioral therapy (CBT) expert.
-    A student preparing for the intensely competitive {exam} exam (with exactly {days_left} days remaining) has shared this raw venting journal entry:
-    
-    "{journal_text}"
-    
-    Analyze their emotional state, stress triggers, and signs of burnout.
-    
-    You MUST respond with a raw JSON object matching the JSON schema provided below. Do not wrap in markdown codeblocks, just output the raw JSON text directly.
-    
-    JSON Schema:
-    {json.dumps(MindMateResponse.model_json_schema())}
+        Constraints for your generation:
+        1. meals: Recommend nutritious, localized Indian food items (breakfast, lunch, dinner, snack) with clear, physiological arguments detailing how they assist in study focus, energy levels, or sleep aids. Explicitly flag one item to avoid.
+        2. coping_plan: Extract EXACTLY 3 sequential, actionable micro-steps to reset focus (e.g., '1. Close your books. 2. Grab a glass of water. 3. Look out the window for 2 minutes').
+        3. walk_prompt: Formulate a highly creative, specific 15-minute evening break mission.
+        4. parent_guardrail: Write a pre-written, gentle, copy-pasteable 1-2 sentence text message the student can send to their parents to request space and manage expectations.
+        5. dynamic_reset_exercise: Devise a highly customized 2-minute physiological grounding reset specifically targeting the detected emotion.
+        6. motivational_nudge: Provide a deeply supportive, customized statement referencing {exam} and the remaining {days_left} days to instill resilient hope.
+        """
+        
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a professional assistant. You must output JSON matching the requested schema. Never output markdown code blocks or commentary."},
+                {"role": "user", "content": prompt}
+            ],
+            model="llama-3.3-70b-versatile",
+            response_format={"type": "json_object"},
+            temperature=0.7
+        )
+        
+        raw_json_string = chat_completion.choices[0].message.content
+        parsed_data = json.loads(raw_json_string)
+        return MindMateResponse(**parsed_data)
+        
+    except Exception as e:
+        st.error(f"Error communicating with core backend: {str(e)}")
+        return None
 
-    Constraints for your generation:
-    1. meals: Recommend nutritious, localized Indian food items (breakfast, lunch, dinner, snack) with clear, physiological arguments detailing how they assist in study focus, energy levels, or sleep aids. Explicitly flag one item to avoid.
-    2. coping_plan: Extract EXACTLY 3 sequential, actionable micro-steps to reset focus (e.g., '1. Close your books. 2. Grab a glass of water. 3. Look out the window for 2 minutes').
-    3. walk_prompt: Formulate a highly creative, specific 15-minute evening break mission (e.g. 'Walk outside and count 5 white cars', 'Observe the tallest tree nearby and count its main branches').
-    4. parent_guardrail: Write a pre-written, gentle, copy-pasteable 1-2 sentence text message the student can send to their parents to request space, manage high expectations, and reduce domestic pressure safely.
-    5. motivational_nudge: Provide a deeply supportive, customized statement referencing {exam} and the remaining {days_left} days to instill resilient hope.
-    """
-    
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": "You are a professional assistant. You must output JSON matching the requested schema. Never output markdown code blocks or commentary."},
-            {"role": "user", "content": prompt}
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.3,
-    )
-    
-    content = response.choices[0].message.content
-    return MindMateResponse.model_validate_json(content)
+def generate_chat_response(api_key, history, user_message, context_summary):
+    try:
+        if not api_key:
+            return "I'm here with you, but my API key configuration is missing."
+            
+        client = Groq(api_key=api_key)
+        messages = [{"role": "system", "content": f"You are MindMate, a warm, conversational AI companion helping a student with exam stress. Context about their current status: {context_summary}. Keep responses supportive, concise, and non-preachy."}]
+        for msg in history:
+            messages.append({"role": msg["role"], "content": msg["content"]})
+        messages.append({"role": "user", "content": user_message})
+        
+        chat_completion = client.chat.completions.create(
+            messages=messages,
+            model="llama-3.1-8b-instant",  # Faster model for responsive interactive chat
+            temperature=0.7
+        )
+        return chat_completion.choices[0].message.content
+    except Exception as e:
+        return f"I'm here with you, but my connection stuttered slightly: {str(e)}"
 
-# ----------------------------------------------------
-# 6. APP DASHBOARD LAYOUT & BUTTON ROUTING
-# ----------------------------------------------------
+# ==========================================
+# 6. STREAMLIT APPLICATION INTERFACE
+# ==========================================
 
+# App Title & Header
 st.markdown("""
 <div>
-    <h1 class="sanctuary-title" style="font-size: 2.8rem; margin-bottom: 0.2rem;">🧠 MindMate</h1>
-    <p style="font-size: 1.15rem; color: #94A3B8; margin-bottom: 2rem;">Your Exam Sanctuary // Navigating competitive stress with structured emotional relief.</p>
+    <h1 class="sanctuary-title" style="font-size: 2.8rem; margin-bottom: 0.2rem;">🧠 MindMate // Your Exam Sanctuary</h1>
+    <p style="font-size: 1.15rem; color: #94A3B8; margin-bottom: 2rem;">Navigating competitive exam pressure with structured emotional and cognitive relief.</p>
 </div>
 """, unsafe_allow_html=True)
 
-# Main input text area
+# Session State Initialization for Chat System
+if "mindmate_data" not in st.session_state:
+    st.session_state.mindmate_data = None
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "panic_active" not in st.session_state:
+    st.session_state.panic_active = False
+
+# Main Dashboard Entry
+st.subheader("📝 Unfiltered Daily Brain Dump")
 journal_text = st.text_area(
-    "Pour your mind out today. Journal your thoughts, fears, or study schedule anxieties here...",
-    placeholder="e.g. I am failing my mock tests and my parents have high expectations. Only 45 days left for JEE and I feel like running away...",
-    height=120
+    f"Pour your mind out today. How is your {exam_choice} prep hitting you? (Vent about formulas, scores, parents, or fatigue here...)",
+    placeholder="It is completely common to feel stressed, but you are doing incredibly well just by showing up. Type exactly how you feel here...",
+    height=140
 )
 
-# Button grid layout
-col_btn_a, col_btn_b, col_empty = st.columns([2, 2, 4])
+# Action Buttons Alignment
+col_btn1, col_btn2 = st.columns([2, 1])
 
-with col_btn_a:
-    if st.button("✨ Analyze & Build My Sanctuary Plan", use_container_width=True):
-        st.session_state.panic_active = False
-        if not api_key:
-            st.error("🔑 Please provide a valid Groq API Key in the sidebar configuration.")
-        elif not journal_text.strip():
-            st.warning("📝 Please pour your thoughts into the text area before planning.")
-        else:
-            with st.spinner("🌌 Anchoring your thoughts and assembling mental relief sanctuary..."):
-                try:
-                    res = generate_sanctuary_plan(
-                        api_key=api_key,
-                        exam=selected_exam,
-                        days_left=days_left,
-                        journal_text=journal_text
-                    )
-                    st.session_state.mindmate_response = res
-                    st.success("Your exam sanctuary blueprint is ready!")
-                except Exception as e:
-                    st.error("⚠️ Failed to reach Groq API. Please verify configuration settings.")
-                    st.exception(e)
+with col_btn1:
+    generate_clicked = st.button("✨ Analyze & Build My Sanctuary Plan", use_container_width=True)
 
-with col_btn_b:
-    if st.button("🚨 INSTANT PANIC BUTTON", use_container_width=True):
-        st.session_state.panic_active = True
-        st.session_state.mindmate_response = None
+with col_btn2:
+    exercise_clicked = st.button("⚡ Quick Reset: Energy & Focus Alignment", use_container_width=True, type="secondary")
 
 # ----------------------------------------------------
-# 7. ROUTE DISPLAY: INSTANT PANIC OR BLUEPRINT
+# 7. ROUTE DISPLAY: Mood-Responsive Grounding Or Blueprint
 # ----------------------------------------------------
+
+# Handle Quick Grounding Exercise
+if exercise_clicked:
+    st.session_state.panic_active = True
+    st.session_state.mindmate_data = None
 
 if st.session_state.panic_active:
-    # Render timed physiological reset
     st.markdown('<div class="panic-card">', unsafe_allow_html=True)
-    st.markdown("<h2 style='color:#EF4444; margin-top:0;'>🛑 Grounding Sanctuary // Active Reset</h2>", unsafe_allow_html=True)
-    st.write(
-        "You are safe. Your heart rate is just temporarily spiked. "
-        "Let's bring you back with a double-inhale physiological sigh reset."
-    )
+    st.markdown("<h2 style='color:#10B981; margin-top:0;'>🛑 Grounding Sanctuary // Dynamic Mood Calibration</h2>", unsafe_allow_html=True)
     
-    col_breath, col_grounding = st.columns([1, 1])
+    if not journal_text.strip():
+        st.warning("Please quickly type a few words about your current feeling in the text box above so I can analyze and design an exercise specifically matching your current mood state!")
+    else:
+        with st.spinner("Analyzing your emotional state to calibrate breathing metrics..."):
+            res = generate_sanctuary_plan(api_key, exam_choice, days, journal_text)
+            if res:
+                col_breath, col_grounding = st.columns([1, 1])
+                with col_breath:
+                    st.markdown("""
+                    <div class="breathing-circle-container">
+                        <div class="breathing-circle">BREATHE</div>
+                        <div class="breathing-phase">
+                            <b>Calibrated Breathing Cycle:</b><br/>
+                            Follow the expanding rhythm. Inhale deeply through your nose, take a second sniff, and sigh exhale slowly.
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with col_grounding:
+                    st.write(f"#### 🧠 Detected Mood: `{res.emotion}`")
+                    st.success(res.dynamic_reset_exercise)
+                    
+                    st.write("##### 🛡️ The Standard Grounding Method:")
+                    st.write("- **5 things you see**, **4 things you touch**, **3 things you hear**, **2 things you smell**, **1 thing you taste**.")
     
-    with col_breath:
-        st.markdown("""
-        <div class="breathing-circle-container">
-            <div class="breathing-circle">BREATHE</div>
-            <div class="breathing-phase">
-                <b>Double Inhale, Long Sigh:</b><br/>
-                1. Inhale deeply through your nose.<br/>
-                2. Take a second sharp sniff to inflate lungs fully.<br/>
-                3. Exhale slowly through your mouth.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    with col_grounding:
-        st.write("#### 🛡️ The 5-4-3-2-1 Grounding Method")
-        st.markdown(
-            "- 👀 **5 things you can see**: Look around and name 5 items in your room.\n"
-            "- ✋ **4 things you can touch**: Feel your desk, clothing, chair, or notebook.\n"
-            "- 👂 **3 things you can hear**: Focus on the clock tick, fan hum, or distant traffic.\n"
-            "- 👃 **2 things you can smell**: Smell your book pages, eraser, or tea/water.\n"
-            "- 👅 **1 thing you can taste**: A sip of water or focus on your breath.\n"
-        )
-        
     if st.button("💚 I Feel Calm / Return to Sanctuary", use_container_width=True):
         st.session_state.panic_active = False
         st.rerun()
         
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Render main AI companion response if set
-elif st.session_state.mindmate_response:
-    res = st.session_state.mindmate_response
+# Handle Main Strategy Plan Generation
+if generate_clicked:
+    st.session_state.panic_active = False
+    if not journal_text.strip():
+        st.warning("Please type a few sentences in the journal dump area first so MindMate can hear your voice!")
+    else:
+        with st.spinner("Decoding stress signatures, generating specialized localized recovery blueprints..."):
+            res = generate_sanctuary_plan(api_key, exam_choice, days, journal_text)
+            if res:
+                st.session_state.mindmate_data = res
+                st.session_state.chat_history = []  # Reset conversational context for new plan
+
+# Render Results Block if Data Exists in Session
+if st.session_state.mindmate_data:
+    res = st.session_state.mindmate_data
+    st.markdown("---")
     
-    st.markdown('<div class="sanctuary-card">', unsafe_allow_html=True)
-    st.subheader("📊 Well-being Metrics & Insights")
+    # Empathy Validation Panel
+    st.markdown(f"### ❤️ A Message for You:")
+    st.info(f"**{res.empathy_validation}**")
     
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
-        st.metric(label="Primary Emotion", value=res.emotion.capitalize())
-    with col_m2:
-        st.metric(label="Burnout Score (1-10)", value=f"{res.burnout_score} / 10")
-        
-    # High Burnout Warning Alert
-    if res.burnout_score >= 8:
-        st.error(
-            f"⚠️ **CRITICAL BURNOUT ALERT:** Your burnout is flagged at {res.burnout_score}/10. "
-            "Please prioritize sleep, step back from books today, and talk to someone close. Your health is irreplaceable."
-        )
-        
-    st.markdown(f"**Root Insight:** {res.emotion_insight}")
+    # Layout Split: Analytics Metrics & Visualization Charts
+    col_metrics, col_chart = st.columns([1, 1])
     
-    # Stress Triggers Tag Display
-    st.markdown("**Academic Stress Triggers Identified:**")
-    trigger_tags = " ".join([f"`{t}`" for t in res.triggers])
-    st.markdown(trigger_tags)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # ----------------------------------------------------
-    # TABS FOR BLUEPRINT PRESENTATION
-    # ----------------------------------------------------
-    tab_reset, tab_fuel, tab_guardrail = st.tabs([
-        "🎯 Mind Reset & Action Plan",
-        "🍱 Brain Fuel (Dietary Guide)",
-        "🛡️ Domestic & Social Guardrail"
+    with col_metrics:
+        st.metric("Primary Mental State Profile", res.emotion.upper())
+        st.metric("Calculated Burnout Index", f"{res.burnout_score}/10")
+        if res.burnout_score >= 8:
+            st.error("⚠️ CRITICAL BURNOUT WARNING: Your indicators have crossed a critical safety point. Take an intentional academic break immediately.")
+        st.markdown(f"**💡 Deep Behavioral Insight:** {res.emotion_insight}")
+
+    with col_chart:
+        # Progress Bars for Stress Distribution Metrics
+        st.write("#### 📊 Stress Distribution Metrics")
+        st.write(f"Academic Workload Fatigue: `{res.academic_anxiety_pct}%`")
+        st.progress(res.academic_anxiety_pct / 100)
+        st.write(f"Physical Burnout & Exhaustion: `{res.fatigue_burnout_pct}%`")
+        st.progress(res.fatigue_burnout_pct / 100)
+        st.write(f"Domestic & Peer Social Pressure: `{res.domestic_pressure_pct}%`")
+        st.progress(res.domestic_pressure_pct / 100)
+
+    # Strategic UI Tab Delivery Separation
+    tab1, tab2, tab3 = st.tabs([
+        "🎯 Focus Reset & Coping Plan", 
+        "🍱 Brain Fuel & Dietary Guide", 
+        "🛡️ Family & Social Support Guardrails"
     ])
     
-    # Tab 1: Mind Reset & Action Plan
-    with tab_reset:
-        st.markdown("### 🎯 Your Focus Reset Action Plan")
-        st.write("Complete these 3 micro-steps in sequence:")
+    with tab1:
+        st.write("### ⚙️ Your 3-Step Micro-Action Directives:")
         for idx, step in enumerate(res.coping_plan, 1):
-            st.markdown(f"**Step {idx}:** {step}")
-            
-        st.markdown("---")
-        st.markdown("### 🚶 Evening Walk Sanctuary Mission")
-        st.markdown(f"""
-        <div class="guide-box">
-            <b>Your 15-Minute Cognitive Reset Mission:</b><br/>
-            {res.walk_prompt}
-        </div>
-        """, unsafe_allow_html=True)
+            st.write(f"**{idx}.** {step}")
+        st.write("---")
+        st.write("### 🚶‍♂️ Tonight's 15-Minute Cognitive Mind Mission:")
+        st.code(res.walk_prompt, language="text")
         
-    # Tab 2: Brain Fuel
-    with tab_fuel:
-        st.markdown("### 🍱 Localized Brain Fuel recommendations")
-        st.write("Optimize your gut-brain axis with healthy Indian options:")
+    with tab2:
+        st.write("### 🍛 Culturally Localized Stress-Management Foods")
+        f_col1, f_col2 = st.columns(2)
+        with f_col1:
+            st.markdown(f"**🍳 Breakfast:** {res.meals.breakfast}")
+            st.markdown(f"**🍛 Lunch:** {res.meals.lunch}")
+        with f_col2:
+            st.markdown(f"**🍲 Dinner:** {res.meals.dinner}")
+            st.markdown(f"**🥜 Brain Snack:** {res.meals.snack}")
+        st.error(f"**🚫 Physiological Threat to Avoid Today:** {res.meals.avoid}")
         
-        st.markdown(f"""
-        <div class="guide-box">
-            🍳 <b>Breakfast:</b> {res.meals.breakfast}
-        </div>
-        <div class="guide-box">
-            🥗 <b>Lunch:</b> {res.meals.lunch}
-        </div>
-        <div class="guide-box">
-            🍲 <b>Dinner:</b> {res.meals.dinner}
-        </div>
-        <div class="guide-box">
-            🥜 <b>Snack:</b> {res.meals.snack}
-        </div>
-        <div class="warning-box">
-            ⚠️ <b>Avoid Today:</b> {res.meals.avoid}
-        </div>
-        """, unsafe_allow_html=True)
+    with tab3:
+        st.write("### 🏡 The Parent Boundary Management Guardrail")
+        st.caption("Copy and paste this direct message to your parents to proactively manage expectations cleanly:")
+        st.text_area("Click to copy:", value=res.parent_guardrail, height=70)
         
-    # Tab 3: Domestic & Social Guardrails
-    with tab_guardrail:
-        st.markdown("### 🛡️ Managing domestic pressure & social anchors")
+        st.write("---")
+        st.write("### 🎧 Academic Efficiency & Interactive Sandbox Links")
         
-        st.markdown("💬 **Parent Expectation Guardrail Message**")
-        st.write("Copy and paste this message to communicate boundaries and expectations to your parents:")
-        st.code(res.parent_guardrail, language="text")
+        # Real Dynamic URL String Encoding for Instant Navigation Actions
+        encoded_music = urllib.parse.quote(res.youtube_music_query)
+        encoded_strategy = urllib.parse.quote(res.youtube_strategy_query)
         
-        st.markdown("💬 **Friend Nudge**")
-        st.info(res.friend_nudge)
-        
-        st.markdown("🎵 **Music Mood Recommendation**")
-        st.write(f"Vibe Recommendation: **{res.music_mood}**")
-        
-        st.markdown("🔍 **Tactical Study Material/Break Search**")
-        st.write(f"Search for this on YouTube for helpful support: `{res.youtube_search}`")
-        
-        # Clickable simulation link to search YouTube
-        query_encoded = urllib.parse.quote(res.youtube_search)
-        search_link = f"https://www.youtube.com/results?search_query={query_encoded}"
-        st.markdown(f"[🔗 Click here to search YouTube for '{res.youtube_search}']({search_link})")
+        st.markdown(f"🎵 **Mood-Calibrated Soundscape:** [{res.youtube_music_query}](https://music.youtube.com/search?q={encoded_music})")
+        st.markdown(f"📱 **High-Yield Tactical Strategy Search:** [{res.youtube_strategy_query}](https://www.youtube.com/results?search_query={encoded_strategy})")
+        st.markdown(f"💬 **Social Connection Micro-Action:** {res.friend_nudge}")
         
         st.markdown("---")
         st.markdown("### 🌟 Motivational Nudge")
@@ -451,8 +450,31 @@ elif st.session_state.mindmate_response:
         </div>
         """, unsafe_allow_html=True)
 
-    # Reset sanctuary layout
-    if st.button("🔄 Clear and Restart Journal", use_container_width=True):
-        st.session_state.mindmate_response = None
-        st.session_state.panic_active = False
-        st.rerun()
+    # ==========================================
+    # 8. LIVE INTERACTIVE CHAT PLATFORM
+    # ==========================================
+    st.markdown("---")
+    st.subheader("💬 Chat Platform // Stay & Talk with MindMate")
+    st.caption("Want to adjust the steps? Need to vent more about a specific subject? Talk to me below, I am listening.")
+    
+    # Render interactive chat messages log
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
+            
+    # Process Chat Input Sandbox Frame
+    if chat_input := st.chat_input("Say anything else, ask for custom modifications to your meals, or just talk..."):
+        # Append User Input
+        st.session_state.chat_history.append({"role": "user", "content": chat_input})
+        with st.chat_message("user"):
+            st.write(chat_input)
+            
+        # Compile contextual snapshot summary for thin model mapping
+        context_snap = f"Student is prepping for {exam_choice} with {days} days left. Current verified state is {res.emotion} with burnout index of {res.burnout_score}/10."
+        
+        # Stream response back
+        with st.chat_message("assistant"):
+            with st.spinner("Processing next response stream..."):
+                reply = generate_chat_response(api_key, st.session_state.chat_history[:-1], chat_input, context_snap)
+                st.write(reply)
+                st.session_state.chat_history.append({"role": "assistant", "content": reply})

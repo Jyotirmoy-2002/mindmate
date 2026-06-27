@@ -253,12 +253,13 @@ def generate_sanctuary_plan(api_key, exam, days_left, journal_entry):
         {json.dumps(MindMateResponse.model_json_schema())}
 
         Constraints for your generation:
-        1. meals: Recommend nutritious, localized Indian food items (breakfast, lunch, dinner, snack) with clear, physiological arguments detailing how they assist in study focus, energy levels, or sleep aids. Explicitly flag one item to avoid today.
-        2. coping_plan: Extract EXACTLY 3 sequential, actionable micro-steps to reset focus (e.g., '1. Close your books. 2. Grab a glass of water. 3. Look out the window for 2 minutes').
-        3. walk_prompt: Formulate a highly creative, specific 15-minute evening break mission.
-        4. parent_guardrail: Write a pre-written, gentle, copy-pasteable 1-2 sentence text message the student can send to their parents to request space and manage expectations.
-        5. dynamic_reset_exercise: Devise a highly customized 2-minute physiological grounding reset specifically targeting the detected emotion.
-        6. motivational_nudge: Provide a deeply supportive, customized statement referencing {exam} and the remaining {days_left} days to instill resilient hope.
+        1. empathy_validation: This field MUST contain a highly dynamic, deeply comforting, and ultra-specific response. Do NOT use generic formulas or templated comfort phrases (such as "it's normal to feel this way"). Instead, write directly to the specific anxieties, topics, mock scores, topics of studies, physical fatigue, parent demands, or fears expressed by the student in their journal entry. Speak as a deeply attentive, warm friend who acknowledges their exact specific pain points directly.
+        2. meals: Recommend nutritious, localized Indian food items (breakfast, lunch, dinner, snack) with clear, physiological arguments detailing how they assist in study focus, energy levels, or sleep aids. Explicitly flag one item to avoid today.
+        3. coping_plan: Extract EXACTLY 3 sequential, actionable micro-steps to reset focus (e.g., '1. Close your books. 2. Grab a glass of water. 3. Look out the window for 2 minutes').
+        4. walk_prompt: Formulate a highly creative, specific 15-minute evening break mission.
+        5. parent_guardrail: Write a pre-written, gentle, copy-pasteable 1-2 sentence text message the student can send to their parents to request space and manage expectations.
+        6. dynamic_reset_exercise: Devise a highly customized 2-minute physiological grounding reset specifically targeting the detected emotion.
+        7. motivational_nudge: Provide a deeply supportive, customized statement referencing {exam} and the remaining {days_left} days to instill resilient hope, matching their exact current mood state and struggle.
         """
         
         chat_completion = client.chat.completions.create(
@@ -318,15 +319,49 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "panic_active" not in st.session_state:
     st.session_state.panic_active = False
+if "transcribed_text" not in st.session_state:
+    st.session_state.transcribed_text = ""
+if "last_audio_hash" not in st.session_state:
+    st.session_state.last_audio_hash = None
 
 # Main Dashboard Entry
-st.subheader("🌱 What's on your mind, friend? Let it out...")
-journal_text = st.text_area(
-    label=f"How is your {exam_choice} prep hitting you today? Feel free to vent about formulas, schedules, parents, or fatigue—I'm here to listen.",
-    placeholder="It's completely normal to feel stressed. You are doing incredibly well just by showing up. Tell me what's going on...",
-    height=140,
-    help="Pour out your unstructured thoughts. Your entry remains private and is analyzed locally to calibrate your stress day-plan."
-)
+st.subheader("🌱 What's on your mind, friend?")
+
+# Voice and Text input tabs
+input_tab1, input_tab2 = st.tabs(["✍️ Write to me", "🎙️ Speak to me"])
+
+with input_tab1:
+    journal_text = st.text_area(
+        label=f"How is your {exam_choice} prep hitting you today? Feel free to vent about formulas, schedules, parents, or fatigue—I'm here to listen.",
+        value=st.session_state.transcribed_text,
+        placeholder="It's completely normal to feel stressed. You are doing incredibly well just by showing up. Tell me what's going on...",
+        height=140,
+        help="Pour out your unstructured thoughts. Your entry remains private and is analyzed locally to calibrate your stress day-plan."
+    )
+
+with input_tab2:
+    audio_file = st.audio_input(
+        label="Record your voice journal entry:",
+        help="Click record, talk freely about your stress, and click stop when you are done. Your voice will be securely transcribed."
+    )
+    if audio_file is not None:
+        audio_bytes = audio_file.read()
+        audio_hash = hash(audio_bytes)
+        if st.session_state.get("last_audio_hash") != audio_hash:
+            with st.spinner("🎧 Listening closely and transcribing your voice..."):
+                try:
+                    client = get_groq_client(api_key)
+                    transcription = client.audio.transcriptions.create(
+                        file=("audio.wav", audio_bytes),
+                        model="whisper-large-v3",
+                        response_format="json"
+                    )
+                    st.session_state.transcribed_text = transcription.text
+                    st.session_state.last_audio_hash = audio_hash
+                    st.success("Voice successfully transcribed! Switch to the 'Write to me' tab to view/edit it, or click the build plan button below.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Could not transcribe voice: {str(e)}")
 
 # Action Buttons Alignment
 col_btn1, col_btn2 = st.columns([2, 1])

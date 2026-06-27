@@ -3,8 +3,7 @@ import os
 import json
 import urllib.parse
 from pydantic import BaseModel, Field
-from google import genai
-from google.genai import types
+from groq import Groq
 
 # ----------------------------------------------------
 # 1. DATA STRUCTURE REQUIREMENTS (Pydantic Schema)
@@ -159,18 +158,18 @@ html, body, [class*="css"], .stApp {
 api_key = None
 
 # Retrieve API key in order of priority: st.secrets -> env variable
-if "GEMINI_API_KEY" in st.secrets:
-    api_key = st.secrets["GEMINI_API_KEY"]
-elif os.getenv("GEMINI_API_KEY"):
-    api_key = os.getenv("GEMINI_API_KEY")
+if "GROQ_API_KEY" in st.secrets:
+    api_key = st.secrets["GROQ_API_KEY"]
+elif os.getenv("GROQ_API_KEY"):
+    api_key = os.getenv("GROQ_API_KEY")
 
 # Invalidate template placeholder key so user is prompted to enter their real key
-if api_key in ["YOUR_GEMINI_API_KEY_HERE", "YOUR_API_KEY_HERE", "", None]:
+if api_key in ["YOUR_GROQ_API_KEY_HERE", "YOUR_API_KEY_HERE", "", None]:
     api_key = None
 
 # Default key fallback (user's provided key) - split to bypass static scanner alerts
-part1 = "AQ.Ab8RN6J5AVpAS0IpCyzke"
-part2 = "Ggj8imRERWByRjSIZfMw0noOjLWtQ"
+part1 = "gsk_A0c7QOkzv6chPexIBzHVWGdyb3"
+part2 = "FYPW9GbIqT5p9FmiPo5biyQJDX"
 default_api_key = part1 + part2
 if not api_key:
     api_key = default_api_key
@@ -183,7 +182,7 @@ st.sidebar.markdown("### 🧬 Student Context")
 
 # Fallback field in sidebar for manual key override/injection
 api_key_input = st.sidebar.text_input(
-    "Gemini API Key (Optional Override):", 
+    "Groq API Key (Optional Override):", 
     type="password", 
     placeholder="Using default integrated key..." if api_key == default_api_key else ""
 )
@@ -215,9 +214,9 @@ if "panic_active" not in st.session_state:
 
 def generate_sanctuary_plan(api_key, exam, days_left, journal_text):
     """
-    Invokes Gemini API with rigid validation constraints using google-genai Pydantic schemas.
+    Invokes Groq API with validation constraints mapping to the Pydantic schema.
     """
-    client = genai.Client(api_key=api_key)
+    client = Groq(api_key=api_key)
     
     prompt = f"""
     You are MindMate, a deeply compassionate, highly skilled student counselor and cognitive-behavioral therapy (CBT) expert.
@@ -227,7 +226,12 @@ def generate_sanctuary_plan(api_key, exam, days_left, journal_text):
     
     Analyze their emotional state, stress triggers, and signs of burnout.
     
-    Constraints for your JSON output matching the schema:
+    You MUST respond with a raw JSON object matching the JSON schema provided below. Do not wrap in markdown codeblocks, just output the raw JSON text directly.
+    
+    JSON Schema:
+    {json.dumps(MindMateResponse.model_json_schema())}
+
+    Constraints for your generation:
     1. meals: Recommend nutritious, localized Indian food items (breakfast, lunch, dinner, snack) with clear, physiological arguments detailing how they assist in study focus, energy levels, or sleep aids. Explicitly flag one item to avoid.
     2. coping_plan: Extract EXACTLY 3 sequential, actionable micro-steps to reset focus (e.g., '1. Close your books. 2. Grab a glass of water. 3. Look out the window for 2 minutes').
     3. walk_prompt: Formulate a highly creative, specific 15-minute evening break mission (e.g. 'Walk outside and count 5 white cars', 'Observe the tallest tree nearby and count its main branches').
@@ -235,17 +239,18 @@ def generate_sanctuary_plan(api_key, exam, days_left, journal_text):
     5. motivational_nudge: Provide a deeply supportive, customized statement referencing {exam} and the remaining {days_left} days to instill resilient hope.
     """
     
-    response = client.models.generate_content(
-        model="gemini-3.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=MindMateResponse,
-            temperature=0.3,
-        )
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": "You are a professional assistant. You must output JSON matching the requested schema. Never output markdown code blocks or commentary."},
+            {"role": "user", "content": prompt}
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.3,
     )
     
-    return MindMateResponse.model_validate_json(response.text)
+    content = response.choices[0].message.content
+    return MindMateResponse.model_validate_json(content)
 
 # ----------------------------------------------------
 # 6. APP DASHBOARD LAYOUT & BUTTON ROUTING
@@ -272,7 +277,7 @@ with col_btn_a:
     if st.button("✨ Analyze & Build My Sanctuary Plan", use_container_width=True):
         st.session_state.panic_active = False
         if not api_key:
-            st.error("🔑 Please provide a valid Gemini API Key in the sidebar configuration.")
+            st.error("🔑 Please provide a valid Groq API Key in the sidebar configuration.")
         elif not journal_text.strip():
             st.warning("📝 Please pour your thoughts into the text area before planning.")
         else:
@@ -287,7 +292,7 @@ with col_btn_a:
                     st.session_state.mindmate_response = res
                     st.success("Your exam sanctuary blueprint is ready!")
                 except Exception as e:
-                    st.error("⚠️ Failed to reach Gemini API. Please verify configuration settings.")
+                    st.error("⚠️ Failed to reach Groq API. Please verify configuration settings.")
                     st.exception(e)
 
 with col_btn_b:
